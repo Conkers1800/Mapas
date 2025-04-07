@@ -11,3 +11,13 @@ data class Feature(
 data class Geometry(
     val coordinates: List<List<Double>>
 )
+
+suspend fun fetchRoute(
+    api: DirectionsApi,
+    start: String,
+    end: String,
+    apiKey: String
+): List<List<Double>> {
+    val response = api.getRoute(start = start, end = end, apiKey = apiKey)
+    return response.features.first().geometry.coordinates
+}
