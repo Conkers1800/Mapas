@@ -9,8 +9,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PermissionScreen(onPermissionGranted: () -> Unit) {
     val context = LocalContext.current
