@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                 LocationInputScreen(onRouteRequested = { start, end ->
                     // Llamada a la API para calcular la ruta
                     CoroutineScope(Dispatchers.IO).launch {
-                        val apiKey = "TU_API_KEY" // Sustituye con tu API Key
+                        val apiKey = ""
                         val api = createRetrofitApi()
                         val coordinates = fetchRoute(api, start, end, apiKey)
                         routeCoordinates = coordinates
