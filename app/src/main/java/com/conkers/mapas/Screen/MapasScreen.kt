@@ -1,6 +1,7 @@
 package com.conkers.mapas.Screen
 
 import android.graphics.Color
+import android.location.Location
 import android.preference.PreferenceManager
 import android.util.Log
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,60 +27,53 @@ import org.osmdroid.views.MapView
 @Composable
 fun MapScreen(
     onRouteCalculated: (String) -> Unit,
-    routeCoordinates: List<List<Double>>
+    routeCoordinates: List<List<Double>>,
+    currentLocation: Location?
 ) {
     val context = LocalContext.current
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = { onRouteCalculated("") }) {
-                Text("+")
-            }
-        }
-    ) { paddingValues ->
-        AndroidView(
-            factory = {
-                val mapView = MapView(context)
-                Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context))
-                mapView.setTileSource(TileSourceFactory.MAPNIK)
-                mapView.controller.setZoom(15.0)
-                Log.d("MapView", "MapView inicializado correctamente")
+    AndroidView(
+        factory = {
+            val mapView = MapView(context)
+            Configuration.getInstance().load(context, PreferenceManager.getDefaultSharedPreferences(context))
+            mapView.setTileSource(TileSourceFactory.MAPNIK)
+            mapView.controller.setZoom(15.0)
 
-                // Centrar en el primer punto de la ruta si existe
-                if (routeCoordinates.isNotEmpty()) {
-                    val firstCoordinate = routeCoordinates.first()
-                    mapView.controller.setCenter(GeoPoint(firstCoordinate[1], firstCoordinate[0]))
-                    Log.d("MapScreen", "Mapa centrado en: ${firstCoordinate[1]}, ${firstCoordinate[0]}")
-                } else {
-                    Log.e("MapScreen", "No hay coordenadas disponibles para centrar el mapa")
+            // Centrar en la ubicación actual si no hay coordenadas de ruta
+            if (routeCoordinates.isEmpty() && currentLocation != null) {
+                val currentGeoPoint = GeoPoint(currentLocation.latitude, currentLocation.longitude)
+                mapView.controller.setCenter(currentGeoPoint)
+                Log.d("MapScreen", "Mapa centrado en la ubicación actual: ${currentLocation.latitude}, ${currentLocation.longitude}")
+            } else if (routeCoordinates.isNotEmpty()) {
+                routeCoordinates.firstOrNull()?.let {
+                    mapView.controller.setCenter(GeoPoint(it[1], it[0]))
+                    Log.d("MapScreen", "Mapa centrado en: ${it[1]}, ${it[0]}")
                 }
+            }
 
-                // Dibujar la ruta
-                drawRoute(mapView, routeCoordinates)
+            // Dibujar la ruta si está disponible
+            drawRoute(mapView, routeCoordinates)
 
-                mapView // Retorna el MapView
-            },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        )
-    }
+            mapView
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 fun drawRoute(mapView: MapView, routeCoordinates: List<List<Double>>) {
     if (routeCoordinates.isEmpty()) {
-        Log.e("Ruta", "No hay coordenadas para dibujar")
+        Log.d("Ruta", "No hay ruta para dibujar todavía")
         return
     }
 
     val geoPoints = routeCoordinates.map { GeoPoint(it[1], it[0]) }
-    Log.d("Coordenadas", "Puntos de la ruta: $geoPoints")
+    Log.d("Coordenadas", "Puntos detallados de la ruta: $geoPoints")
 
     val roadOverlay = Polyline().apply {
         setPoints(geoPoints)
-        color = Color.BLUE // Personaliza el color de la ruta
+        color = Color.BLUE
     }
     mapView.overlayManager.add(roadOverlay)
-    mapView.invalidate() // Refresca la vista
-    Log.d("Ruta", "Dibujo completado")
+    mapView.invalidate()
+    Log.d("Ruta", "Ruta dibujada correctamente")
 }

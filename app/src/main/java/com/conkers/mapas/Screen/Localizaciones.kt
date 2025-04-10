@@ -1,8 +1,12 @@
 package com.conkers.mapas.Screen
 
+import android.graphics.Color
+import android.preference.PreferenceManager
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
@@ -17,6 +21,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+
+import org.osmdroid.views.overlay.Polyline
 
 @Composable
 fun LocationInputScreen(
@@ -34,7 +45,7 @@ fun LocationInputScreen(
                 TextField(
                     value = destination,
                     onValueChange = { destination = it },
-                    label = { Text("Dirección de destino (lat,long)") },
+                    label = { Text("Dirección de destino (longitud,latitud)") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -44,7 +55,7 @@ fun LocationInputScreen(
                 if (destination.matches(Regex("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?"))) {
                     onRouteSubmitted(destination)
                 } else {
-                    Toast.makeText(context, "Por favor ingresa coordenadas válidas (longitud,latitud)", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Por favor ingresa coordenadas válidas", Toast.LENGTH_SHORT).show()
                 }
             }) {
                 Text("Confirmar")

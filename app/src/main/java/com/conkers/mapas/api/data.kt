@@ -1,6 +1,7 @@
 package com.conkers.mapas.api
 
 import android.util.Log
+import com.google.gson.Gson
 import retrofit2.HttpException
 
 data class RouteResponse(
@@ -33,19 +34,28 @@ suspend fun fetchRoutePost(
     coordinates: List<List<Double>>
 ): RouteResponse? {
     return try {
+        Log.d("Debug", "Cuerpo de la solicitud: ${
+            Gson().toJson(GeoJsonRequest(
+            geometry = Geometry(
+                coordinates = coordinates,
+                type = "LineString"
+            )
+        ))}")
+
         val requestBody = GeoJsonRequest(
             geometry = Geometry(
                 coordinates = coordinates,
                 type = "LineString"
             )
         )
-        Log.d("Request Body", "Cuerpo enviado: $requestBody")
-        api.postRoute(apiKey = "Bearer $apiKey", body = requestBody)
+        val response = api.postRoute(apiKey = "Bearer $apiKey", body = requestBody)
+        response
     } catch (e: HttpException) {
-        Log.e("HTTP Error", "Error HTTP: ${e.code()} - ${e.message()}")
+        Log.e("HTTP Error", "Error HTTP: ${e.code()} - Detalles: ${e.response()?.errorBody()?.string()}")
         null
     } catch (e: Exception) {
         e.printStackTrace()
+        Log.e("API Error", "Error al conectar con la API: ${e.message}")
         null
     }
 }
