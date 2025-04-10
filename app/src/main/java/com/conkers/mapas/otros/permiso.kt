@@ -1,5 +1,9 @@
 package com.conkers.mapas.otros
 
+import android.Manifest
+import android.content.Context
+import android.location.Location
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
@@ -12,38 +16,51 @@ import androidx.compose.ui.unit.dp
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-
+import com.google.android.gms.location.LocationServices
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PermissionScreen(onPermissionGranted: () -> Unit) {
     val context = LocalContext.current
-    val permissionState = rememberPermissionState(
-        permission = android.Manifest.permission.ACCESS_FINE_LOCATION
-    )
+    val permissionState = rememberPermissionState(permission = Manifest.permission.ACCESS_FINE_LOCATION)
+
+    LaunchedEffect(permissionState.status.isGranted) {
+        if (permissionState.status.isGranted) {
+            onPermissionGranted()
+        }
+    }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "La aplicación necesita acceso a tu ubicación para trazar rutas.")
-
+        Text("La aplicación necesita acceso a tu ubicación para trazar rutas.")
         Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { permissionState.launchPermissionRequest() }) {
+            Text("Conceder permiso")
+        }
+    }
+}
 
-        Button(
-            onClick = {
-                permissionState.launchPermissionRequest()
-                if (permissionState.status.isGranted) {
-                    onPermissionGranted()
+
+fun getCurrentLocation(context: Context, onSuccess: (Location) -> Unit, onError: () -> Unit) {
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+    try {
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    onSuccess(location)
                 } else {
-                    Toast.makeText(context, "Permiso denegado", Toast.LENGTH_SHORT).show()
+                    onError()
                 }
             }
-        ) {
-            Text(text = "Conceder permiso")
-        }
+            .addOnFailureListener {
+                onError()
+            }
+    } catch (e: SecurityException) {
+        e.printStackTrace()
+        onError()
     }
 }

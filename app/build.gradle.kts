@@ -46,6 +46,11 @@ dependencies {
     implementation ("com.squareup.retrofit2:retrofit:2.9.0")
     implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation ("com.google.accompanist:accompanist-permissions:0.28.0")
+    implementation ("androidx.compose.ui:ui:1.4.0")
+    implementation ("androidx.compose.material3:material3:1.1.0")
+    implementation ("androidx.compose.runtime:runtime:1.4.0")
+    implementation ("androidx.compose.material3:material3:1.1.0-alpha06")
+
 
 
     implementation(libs.androidx.core.ktx)
