@@ -1,37 +1,45 @@
 package com.conkers.mapas
 
-import android.app.Activity
-import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.preference.PreferenceManager
-import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.conkers.mapas.api.AppNavigator
-import org.osmdroid.config.Configuration
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.conkers.mapas.Screen.MapScreen
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        Configuration.getInstance().load(applicationContext, PreferenceManager.getDefaultSharedPreferences(applicationContext))
 
-        setContent {
-            AppNavigator(
-                apiKey = "5b3ce3597851110001cf62483410b16241c145f69948237a5fc678f6",
-                context = this
-            )
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            loadMap() // Cargar el mapa si el permiso es concedido
+        } else {
+            Toast.makeText(this, "Permiso de ubicación denegado", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Manejar el resultado de la habilitación del GPS
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 100) {
-            if (resultCode == Activity.RESULT_OK) {
-                Log.d("GPS", "El usuario habilitó el GPS")
-            } else {
-                Log.e("GPS", "El usuario no habilitó el GPS")
-            }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Verificar si el permiso ya está concedido
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            loadMap() // El permiso ya está otorgado, cargar el mapa
+        } else {
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) // Solicitar permiso
+        }
+    }
+
+    private fun loadMap() {
+        setContent {
+            MapScreen(context = this) // Mostrar la pantalla del mapa
         }
     }
 }

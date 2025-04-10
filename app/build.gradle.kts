@@ -41,6 +41,22 @@ android {
 
 dependencies {
 
+    // OSMDroid para mapas offline
+    implementation("org.osmdroid:osmdroid-android:6.1.16")
+
+    // OpenRouteService - HTTP Client y JSON parser
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.json:json:20240303")
+
+    // ViewModel para Compose
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+
+    implementation("androidx.compose.runtime:runtime-livedata:1.5.4")
+
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    implementation("androidx.compose.runtime:runtime-livedata:1.5.4")
+
     implementation ("org.osmdroid:osmdroid-android:6.1.15")
     implementation ("com.google.android.gms:play-services-location:21.0.1")
     implementation ("com.squareup.retrofit2:retrofit:2.9.0")
@@ -62,6 +78,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.play.services.maps)
+    implementation(libs.androidx.appcompat.resources)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

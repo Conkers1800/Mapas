@@ -1,147 +1,191 @@
 package com.conkers.mapas.api
 
-import android.Manifest
 import android.content.Context
-import android.location.Location
+import android.location.Geocoder
 import android.util.Log
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import com.conkers.mapas.Screen.LocationInputScreen
-import com.conkers.mapas.Screen.MapScreen
-import com.conkers.mapas.otros.RequestPermissionsScreen
-import com.conkers.mapas.otros.checkLocationSettings
-import com.conkers.mapas.otros.getCurrentLocation
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.POST
-import retrofit2.http.Query
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import com.conkers.mapas.R
+import com.conkers.mapas.Screen.LocationService
+import kotlinx.coroutines.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Polygon
+import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.Marker
+import java.util.*
 
-interface DirectionsApi {
-    @GET("v2/directions/driving-car")
-    suspend fun getRoute(
-        @Query("api_key") apiKey: String,
-        @Query("start") start: String,
-        @Query("end") end: String
-    ): RouteResponse
+class MapasViewModel : ViewModel() {
 
-    @POST("v2/directions/driving-car")
-    suspend fun postRoute(
-        @Header("Authorization") apiKey: String,
-        @Body body: GeoJsonRequest
-    ): RouteResponse
+    private val client = OkHttpClient()
+    private var mapView: MapView? = null
 
+    private val _routePoints = MutableLiveData<List<GeoPoint>>()
+    val routePoints: LiveData<List<GeoPoint>> = _routePoints
 
-}
+    private var currentLocation: GeoPoint? = null
+    private var currentDestination: GeoPoint? = null
 
+    fun setMapView(map: MapView, context: Context) {
+        this.mapView = map
+        showCurrentLocation(context) // Mostrar ubicación actual en el mapa
+    }
 
+    fun showCurrentLocation(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val locationService = LocationService(context)
+            val location = locationService.getCurrentLocation()
 
-val retrofit: Retrofit = Retrofit.Builder()
-    .baseUrl("https://api.openrouteservice.org/")
-    .addConverterFactory(GsonConverterFactory.create())
-    .build()
-
-val api: DirectionsApi = retrofit.create(DirectionsApi::class.java)
-
-
-fun createRetrofitApi(): DirectionsApi {
-    return Retrofit.Builder()
-        .baseUrl("https://api.openrouteservice.org/")
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(DirectionsApi::class.java)
-}
-
-@Composable
-fun AppNavigator(apiKey: String, context: Context) {
-    var permissionsGranted by remember { mutableStateOf(false) }
-    var routeCoordinates by remember { mutableStateOf(emptyList<List<Double>>()) }
-    var currentLocation by remember { mutableStateOf<Location?>(null) }
-    var destinationAddress by remember { mutableStateOf("") }
-    var showLocationInput by remember { mutableStateOf(false) }
-    val api = remember { createRetrofitApi() }
-
-    if (!permissionsGranted) {
-        RequestPermissionsScreen(onPermissionsGranted = {
-            permissionsGranted = true
-            checkLocationSettings(
-                context = context,
-                onGPSAvailable = {
-                    getCurrentLocation(
-                        context = context,
-                        onSuccess = { location ->
-                            currentLocation = location
-                            Log.d("Location", "Ubicación obtenida: ${location.latitude}, ${location.longitude}")
-                        },
-                        onError = {
-                            Log.e("Location Error", "No se pudo obtener la ubicación actual")
-                        }
-                    )
-                },
-                onGPSUnavailable = {
-                    Toast.makeText(context, "Por favor habilita el GPS para continuar", Toast.LENGTH_SHORT).show()
-                }
-            )
-        })
-    } else {
-        LaunchedEffect(currentLocation, destinationAddress) {
-            if (currentLocation != null && destinationAddress.isNotEmpty()) {
-                try {
-                    val startCoordinates = listOf(currentLocation!!.longitude, currentLocation!!.latitude)
-                    val endCoordinates = destinationAddress.split(",").map { it.toDouble() }
-
-                    Log.d("AppNavigator", "Punto inicial: $startCoordinates, Punto final: $endCoordinates")
-
-                    val responsePost = fetchRoutePost(api, apiKey, listOf(startCoordinates, endCoordinates))
-                    routeCoordinates = responsePost?.routes?.firstOrNull()?.geometry?.coordinates ?: emptyList()
-                    if (routeCoordinates.isEmpty()) {
-                        Log.e("Error", "No se pudieron obtener las coordenadas detalladas de la ruta")
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    Log.e("Error", "Error al calcular la ruta: ${e.message}")
-                }
+            val currentGeoPoint = if (location != null) {
+                GeoPoint(location.latitude, location.longitude)
+            } else {
+                GeoPoint(19.427025, -99.167665) // Fallback predeterminado
             }
-        }
 
-        Scaffold(
-            floatingActionButton = {
-                FloatingActionButton(onClick = { showLocationInput = true }) {
-                    Text("+")
-                }
+            currentLocation = currentGeoPoint
+
+            withContext(Dispatchers.Main) {
+                addCurrentLocationMarker(currentGeoPoint) // Añadir el marcador
+                addCircleOnMap(currentGeoPoint, 50.0) // Añadir un círculo pequeño de 50 metros
             }
-        ) { paddingValues ->
-            MapScreen(
-                onRouteCalculated = { destination ->
-                    destinationAddress = destination
-                },
-                routeCoordinates = routeCoordinates,
-                currentLocation = currentLocation // Para centrar el mapa en la ubicación actual
-            )
-        }
-
-        if (showLocationInput) {
-            LocationInputScreen(
-                onDismissRequest = { showLocationInput = false },
-                onRouteSubmitted = { destination ->
-                    destinationAddress = destination
-                    showLocationInput = false
-                }
-            )
         }
     }
+    private fun addCircleOnMap(center: GeoPoint, radiusInMeters: Double) {
+        mapView?.let { map ->
+            // Crear un objeto Polygon para representar el círculo
+            val circle = org.osmdroid.views.overlay.Polygon(map).apply {
+                points = Polygon.pointsAsCircle(center, radiusInMeters) // Generar los puntos del círculo
+                fillColor = android.graphics.Color.argb(75, 0, 0, 255) // Azul semitransparente para el interior del círculo
+                strokeColor = android.graphics.Color.BLUE // Azul sólido para el borde del círculo
+                strokeWidth = 2f // Ancho del borde
+            }
+
+            // Añadir el círculo al mapa
+            map.overlays.add(circle)
+            map.invalidate() // Refrescar el mapa para mostrar los cambios
+        }
+    }
+
+    private fun addCurrentLocationMarker(geoPoint: GeoPoint) {
+        mapView?.let { map ->
+            val marker = Marker(map).apply {
+                position = geoPoint
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                title = "Ubicación actual"
+            }
+
+            // Reemplazamos el ícono con un círculo dibujado en el mapa
+            marker.icon = createDrawableCircle(map.context)
+
+            // Limpiar marcadores anteriores y agregar el nuevo marcador
+            map.overlays.removeIf { it is Marker && it.title == "Ubicación actual" }
+            map.overlays.add(marker)
+
+            // Centrar el mapa en la ubicación actual
+            map.controller.setCenter(geoPoint)
+            map.invalidate() // Refrescar el mapa para aplicar los cambios
+        }
+    }
+
+    private fun createDrawableCircle(context: Context): android.graphics.drawable.Drawable {
+        // Tamaño del círculo
+        val circleRadius = 50 // En píxeles
+
+        // Crear un Bitmap y un Canvas para dibujar el círculo
+        val bitmap = android.graphics.Bitmap.createBitmap(circleRadius * 2, circleRadius * 2, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+
+        // Configurar el Paint para dibujar el círculo
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.BLUE // Color del círculo
+            style = android.graphics.Paint.Style.FILL // Rellenar el círculo
+            isAntiAlias = true
+        }
+
+        // Dibujar el círculo
+        canvas.drawCircle(circleRadius.toFloat(), circleRadius.toFloat(), circleRadius.toFloat(), paint)
+
+        // Convertir el Bitmap en un Drawable
+        return android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
+    }
+
+
+    fun searchAndRouteTo(context: Context, address: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val geocoder = Geocoder(context, Locale.getDefault())
+                val results = geocoder.getFromLocationName(address, 1)
+                if (!results.isNullOrEmpty()) {
+                    val destination = GeoPoint(results[0].latitude, results[0].longitude)
+
+                    currentLocation?.let { start ->
+                        fetchRoute(start, destination)
+                    }
+                } else {
+                    Log.e("GEOCODER", "Dirección no encontrada: $address")
+                }
+            } catch (e: Exception) {
+                Log.e("GEOCODER", "Error en Geocoder: ${e.message}")
+            }
+        }
+    }
+
+    private fun fetchRoute(start: GeoPoint, end: GeoPoint) {
+        val url =
+            "https://api.openrouteservice.org/v2/directions/driving-car?start=${start.longitude},${start.latitude}&end=${end.longitude},${end.latitude}"
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("Authorization", "TU_API_KEY") // Coloca tu API Key aquí
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val responseBody = response.body?.string() ?: ""
+
+                val json = JSONObject(responseBody)
+                if (!json.has("features")) {
+                    Log.e("API", "Respuesta inválida (sin 'features'): $responseBody")
+                    return@launch
+                }
+
+                val coordinates = json
+                    .getJSONArray("features")
+                    .getJSONObject(0)
+                    .getJSONObject("geometry")
+                    .getJSONArray("coordinates")
+
+                val points = mutableListOf<GeoPoint>()
+                for (i in 0 until coordinates.length()) {
+                    val coord = coordinates.getJSONArray(i)
+                    points.add(GeoPoint(coord.getDouble(1), coord.getDouble(0)))
+                }
+
+                withContext(Dispatchers.Main) {
+                    _routePoints.value = points
+                    drawRoute()
+                }
+
+            } catch (e: Exception) {
+                Log.e("API", "Error al procesar la ruta: ${e.message}")
+            }
+        }
+    }
+
+    fun drawRoute() {
+        val polyline = Polyline().apply {
+            routePoints.value?.let { setPoints(it) }
+            outlinePaint.strokeWidth = 8f
+        }
+        mapView?.overlays?.clear()
+        mapView?.overlays?.add(polyline)
+        mapView?.invalidate()
+    }
 }
+
