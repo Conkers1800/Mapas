@@ -25,30 +25,6 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
 
-@OptIn(ExperimentalPermissionsApi::class)
-@Composable
-fun PermissionScreen(onPermissionGranted: () -> Unit) {
-    val context = LocalContext.current
-    val permissionState = rememberPermissionState(permission = Manifest.permission.ACCESS_FINE_LOCATION)
-
-    LaunchedEffect(permissionState.status.isGranted) {
-        if (permissionState.status.isGranted) {
-            onPermissionGranted()
-        }
-    }
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("La aplicación necesita acceso a tu ubicación para trazar rutas.")
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { permissionState.launchPermissionRequest() }) {
-            Text("Conceder permiso")
-        }
-    }
-}
 @Composable
 fun RequestPermissionsScreen(onPermissionsGranted: () -> Unit) {
     val context = LocalContext.current
@@ -87,63 +63,5 @@ fun RequestPermissionsScreen(onPermissionsGranted: () -> Unit) {
         }) {
             Text("Solicitar permisos")
         }
-    }
-}
-
-fun checkLocationSettings(
-    context: Context,
-    onGPSAvailable: () -> Unit,
-    onGPSUnavailable: () -> Unit
-) {
-    val locationRequest = LocationRequest.create().apply {
-        priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-    }
-    val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
-
-    val settingsClient = LocationServices.getSettingsClient(context)
-    val task = settingsClient.checkLocationSettings(builder.build())
-
-    task.addOnSuccessListener {
-        Log.d("GPS", "Configuraciones de ubicación correctas")
-        onGPSAvailable()
-    }
-
-    task.addOnFailureListener { exception ->
-        if (exception is ResolvableApiException) {
-            try {
-                exception.startResolutionForResult(context as Activity, 100)
-            } catch (sendEx: IntentSender.SendIntentException) {
-                Log.e("GPS Error", "Error al solicitar habilitación del GPS")
-            }
-        } else {
-            Log.e("GPS", "El GPS no está disponible")
-            onGPSUnavailable()
-        }
-    }
-}
-
-
-fun getCurrentLocation(context: Context, onSuccess: (Location) -> Unit, onError: () -> Unit) {
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-
-    try {
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    Log.d("Ubicación Actual", "Lat: ${location.latitude}, Lng: ${location.longitude}")
-                    onSuccess(location)
-                } else {
-                    Log.e("Ubicación Actual", "No se pudo obtener la ubicación")
-                    onError()
-                }
-            }
-            .addOnFailureListener {
-                Log.e("Ubicación Error", "Error al obtener la ubicación")
-                onError()
-            }
-    } catch (e: SecurityException) {
-        Log.e("Permiso de Ubicación", "Permiso denegado o no configurado correctamente")
-        e.printStackTrace()
-        onError()
     }
 }

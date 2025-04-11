@@ -23,7 +23,6 @@ fun MapScreen(context: Context, mapViewModel: MapasViewModel= viewModel()) {
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // Mapa
         AndroidView(factory = {
             Configuration.getInstance().load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
             val map = MapView(context)
@@ -35,17 +34,14 @@ fun MapScreen(context: Context, mapViewModel: MapasViewModel= viewModel()) {
             map
         }, update = {}, modifier = Modifier.fillMaxSize())
 
-        // Botón flotante para abrir el menú
         FloatingActionButton(
             onClick = { isMenuOpen = !isMenuOpen },
             modifier = Modifier
-                .align(Alignment.BottomEnd)
+                .align(Alignment.BottomStart)
                 .padding(16.dp)
         ) {
             Icon(imageVector = Icons.Default.Menu, contentDescription = "Abrir menú")
         }
-
-        // Menú desplegable
         if (isMenuOpen) {
             Card(
                 modifier = Modifier
@@ -58,27 +54,33 @@ fun MapScreen(context: Context, mapViewModel: MapasViewModel= viewModel()) {
                     OutlinedTextField(
                         value = destinationInput,
                         onValueChange = { destinationInput = it },
-                        label = { Text("Ingresar destino (dirección o coordenadas)") },
+                        label = { Text("Ingresar destino") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            isMenuOpen = false
-                            mapViewModel.searchAndRouteTo(context, destinationInput)
-                        },
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Buscar Ruta")
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            mapViewModel.showCurrentLocation(context)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Actualizar ubicación")
+                        Button(
+                            onClick = {
+                                isMenuOpen = false
+                                mapViewModel.searchAndRouteTo(context, destinationInput)
+                            },
+                            modifier = Modifier.weight(1f)
+                                .padding(end = 8.dp) // Espaciado entre botones
+                        ) {
+                            Text("Buscar Ruta")
+                        }
+
+                        Button(
+                            onClick = {
+                                mapViewModel.showCurrentLocation(context)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Ubicación actual")
+                        }
                     }
                 }
             }

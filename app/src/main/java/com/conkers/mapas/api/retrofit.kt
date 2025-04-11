@@ -3,12 +3,10 @@ package com.conkers.mapas.api
 import android.content.Context
 import android.location.Geocoder
 import android.util.Log
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.conkers.mapas.R
-import com.conkers.mapas.Screen.LocationService
+import com.conkers.mapas.Screen.ServicioLocalizacion
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -22,12 +20,10 @@ import java.util.*
 
 class MapasViewModel : ViewModel() {
 
-    private val client = OkHttpClient()
-    private var mapView: MapView? = null
-
     private val _routePoints = MutableLiveData<List<GeoPoint>>()
     val routePoints: LiveData<List<GeoPoint>> = _routePoints
-
+    private val client = OkHttpClient()
+    private var mapView: MapView? = null
     private var currentLocation: GeoPoint? = null
     private var currentDestination: GeoPoint? = null
 
@@ -35,23 +31,22 @@ class MapasViewModel : ViewModel() {
         this.mapView = map
         showCurrentLocation(context) // Mostrar ubicación actual en el mapa
     }
-
     fun showCurrentLocation(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
-            val locationService = LocationService(context)
-            val location = locationService.getCurrentLocation()
+            val servicioLocalizacion = ServicioLocalizacion(context)
+            val location = servicioLocalizacion.getCurrentLocation()
 
             val currentGeoPoint = if (location != null) {
                 GeoPoint(location.latitude, location.longitude)
             } else {
-                GeoPoint(19.427025, -99.167665) // Fallback predeterminado
+                GeoPoint(20.427025, -101.167665)
             }
 
             currentLocation = currentGeoPoint
 
             withContext(Dispatchers.Main) {
                 addCurrentLocationMarker(currentGeoPoint) // Añadir el marcador
-                addCircleOnMap(currentGeoPoint, 50.0) // Añadir un círculo pequeño de 50 metros
+                addCircleOnMap(currentGeoPoint, 10.0)
             }
         }
     }
@@ -59,18 +54,15 @@ class MapasViewModel : ViewModel() {
         mapView?.let { map ->
             // Crear un objeto Polygon para representar el círculo
             val circle = org.osmdroid.views.overlay.Polygon(map).apply {
-                points = Polygon.pointsAsCircle(center, radiusInMeters) // Generar los puntos del círculo
-                fillColor = android.graphics.Color.argb(75, 0, 0, 255) // Azul semitransparente para el interior del círculo
+                points = Polygon.pointsAsCircle(center, radiusInMeters)
+                fillColor = android.graphics.Color.argb(75, 0, 0, 255) //Circulo transparente
                 strokeColor = android.graphics.Color.BLUE // Azul sólido para el borde del círculo
                 strokeWidth = 2f // Ancho del borde
             }
-
-            // Añadir el círculo al mapa
             map.overlays.add(circle)
             map.invalidate() // Refrescar el mapa para mostrar los cambios
         }
     }
-
     private fun addCurrentLocationMarker(geoPoint: GeoPoint) {
         mapView?.let { map ->
             val marker = Marker(map).apply {
@@ -78,17 +70,15 @@ class MapasViewModel : ViewModel() {
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 title = "Ubicación actual"
             }
-
             // Reemplazamos el ícono con un círculo dibujado en el mapa
             marker.icon = createDrawableCircle(map.context)
-
-            // Limpiar marcadores anteriores y agregar el nuevo marcador
+            // Limpiar marcador
             map.overlays.removeIf { it is Marker && it.title == "Ubicación actual" }
             map.overlays.add(marker)
 
             // Centrar el mapa en la ubicación actual
             map.controller.setCenter(geoPoint)
-            map.invalidate() // Refrescar el mapa para aplicar los cambios
+            map.invalidate()
         }
     }
 
@@ -102,15 +92,13 @@ class MapasViewModel : ViewModel() {
 
         // Configurar el Paint para dibujar el círculo
         val paint = android.graphics.Paint().apply {
-            color = android.graphics.Color.BLUE // Color del círculo
-            style = android.graphics.Paint.Style.FILL // Rellenar el círculo
+            color = android.graphics.Color.BLUE
+            style = android.graphics.Paint.Style.FILL
             isAntiAlias = true
         }
 
         // Dibujar el círculo
         canvas.drawCircle(circleRadius.toFloat(), circleRadius.toFloat(), circleRadius.toFloat(), paint)
-
-        // Convertir el Bitmap en un Drawable
         return android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
     }
 
@@ -122,7 +110,6 @@ class MapasViewModel : ViewModel() {
                 val results = geocoder.getFromLocationName(address, 1)
                 if (!results.isNullOrEmpty()) {
                     val destination = GeoPoint(results[0].latitude, results[0].longitude)
-
                     currentLocation?.let { start ->
                         fetchRoute(start, destination)
                     }
@@ -137,24 +124,25 @@ class MapasViewModel : ViewModel() {
 
     private fun fetchRoute(start: GeoPoint, end: GeoPoint) {
         val url =
-            "https://api.openrouteservice.org/v2/directions/driving-car?start=${start.longitude},${start.latitude}&end=${end.longitude},${end.latitude}"
-
+            "https://api.openrouteservice.org/v2/directions/driving-car?start=" +
+                    "${start.longitude}," +
+                    "${start.latitude}" +
+                    "&end=${end.longitude}," +
+                    "${end.latitude}"
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val request = Request.Builder()
                     .url(url)
-                    .addHeader("Authorization", "5b3ce3597851110001cf62483410b16241c145f69948237a5fc678f6") // Coloca tu API Key aquí
+                    .addHeader("Authorization",
+                        "5b3ce3597851110001cf62483410b16241c145f69948237a5fc678f6")
                     .build()
-
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string() ?: ""
-
                 val json = JSONObject(responseBody)
                 if (!json.has("features")) {
-                    Log.e("API", "Respuesta inválida (sin 'features'): $responseBody")
+                    Log.e("API", "Respuesta inválida'): $responseBody")
                     return@launch
                 }
-
                 val coordinates = json
                     .getJSONArray("features")
                     .getJSONObject(0)
@@ -166,18 +154,16 @@ class MapasViewModel : ViewModel() {
                     val coord = coordinates.getJSONArray(i)
                     points.add(GeoPoint(coord.getDouble(1), coord.getDouble(0)))
                 }
-
                 withContext(Dispatchers.Main) {
                     _routePoints.value = points
                     drawRoute()
                 }
 
             } catch (e: Exception) {
-                Log.e("API", "Error al procesar la ruta: ${e.message}")
+                Log.e("API", "Error de ruta: ${e.message}")
             }
         }
     }
-
     fun drawRoute() {
         val polyline = Polyline().apply {
             routePoints.value?.let { setPoints(it) }
@@ -188,4 +174,3 @@ class MapasViewModel : ViewModel() {
         mapView?.invalidate()
     }
 }
-
