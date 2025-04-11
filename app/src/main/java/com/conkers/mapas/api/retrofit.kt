@@ -143,7 +143,7 @@ class MapasViewModel : ViewModel() {
             try {
                 val request = Request.Builder()
                     .url(url)
-                    .addHeader("Authorization", "TU_API_KEY") // Coloca tu API Key aquí
+                    .addHeader("Authorization", "5b3ce3597851110001cf62483410b16241c145f69948237a5fc678f6") // Coloca tu API Key aquí
                     .build()
 
                 val response = client.newCall(request).execute()
